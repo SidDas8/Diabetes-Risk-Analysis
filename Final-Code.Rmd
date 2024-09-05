@@ -1,0 +1,490 @@
+---
+title: "STA 135 Final Project"
+author: "Martin Topacio, Isabelle Berkowitz, Carly Schwartzberg, Siddharth Das"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-06-05"
+---
+
+
+
+
+```{r}
+library(mlbench)
+library(MASS)
+library(caret)
+library(corrplot)
+library(randomForest)
+library(biotools)
+library(e1071)
+```
+
+```{r}
+data(PimaIndiansDiabetes)
+head(PimaIndiansDiabetes)
+
+dim(PimaIndiansDiabetes)
+```
+
+Visualizations
+
+```{r}
+library(corrplot)
+correlation_matrix <- cor(PimaIndiansDiabetes[, 1:8], use = "complete.obs")
+corrplot(correlation_matrix, method = "circle")
+
+```
+
+```{r}
+corrplot::corrplot(correlation_matrix, type = "lower", method = "number")
+
+```
+```{r}
+library(ggplot2)
+library(gridExtra)
+
+plot_age <- ggplot(PimaIndiansDiabetes, aes(x = age, fill = diabetes)) +
+  geom_bar() +
+  labs(title = "Diabetes Distribution by Age", x = "Age", y = "Count") +
+  theme_minimal()
+
+plot_pregnant <- ggplot(PimaIndiansDiabetes, aes(x = pregnant, fill = diabetes)) +
+  geom_bar() +
+  labs(title = " Dist by Pregnancy", x = "Pregnant", y = "Count") +
+  theme_minimal()
+
+plot_glucose <- ggplot(PimaIndiansDiabetes, aes(x = glucose, fill = diabetes)) +
+  geom_bar() +
+  labs(title = "Diabetes Distribution by Glucose", x = "Glucose", y = "Count") +
+  theme_minimal()
+
+plot_pressure <- ggplot(PimaIndiansDiabetes, aes(x = pressure, fill = diabetes)) +
+  geom_bar() +
+  labs(title = "Dist by Pressure", x = "Pressure", y = "Count") +
+  theme_minimal()
+
+#space out graphs so not in one chunk
+grid.arrange(plot_age, plot_pregnant, plot_glucose, plot_pressure,
+         	ncol = 2, nrow = 2,
+         	heights = c(2, 1), widths = c(2, 1))
+
+```
+
+
+```{r}
+plot_triceps <- ggplot(PimaIndiansDiabetes, aes(x = triceps, fill = diabetes)) +
+  geom_bar() +
+  labs(title = "Diabetes Distribution by Triceps", x = "Triceps", y = "Count") +
+  theme_minimal()
+
+plot_insulin <- ggplot(PimaIndiansDiabetes, aes(x = insulin, fill = diabetes)) +
+  geom_bar() +
+  labs(title = "Dist by Insulin", x = "Insulin", y = "Count") +
+  theme_minimal()
+
+plot_mass <- ggplot(PimaIndiansDiabetes, aes(x = mass, fill = diabetes)) +
+  geom_bar() +
+  labs(title = "Diabetes Distribution by Mass", x = "Mass", y = "Count") +
+  theme_minimal()
+
+plot_pedigree <- ggplot(PimaIndiansDiabetes, aes(x = pedigree, fill = diabetes)) +
+  geom_bar() +
+  labs(title = "Dist by Pedigree", x = "Pedigree", y = "Count") +
+  theme_minimal()
+
+#space out plots better 
+grid.arrange(plot_triceps, plot_insulin, plot_mass, plot_pedigree,
+         	ncol = 2, nrow = 2,
+         	heights = c(1, 2), widths = c(2, 1))
+
+```
+
+
+```{r}
+library(ggplot2)
+plot1 <- ggplot(PimaIndiansDiabetes, aes(x = diabetes, y = age, fill = diabetes)) +
+  geom_boxplot() +
+  labs(title = "Age by Diabetes Status", x = "Diabetes Status", y = "Age") +
+  theme_minimal()
+
+plot2 <- ggplot(PimaIndiansDiabetes, aes(x = diabetes, y = pregnant, fill = diabetes)) +
+  geom_boxplot() +
+  labs(title = "Pregnancy by Diabetes Status", x = "Diabetes Status", y = "Pregnancy") +
+  theme_minimal()
+
+plot3 <- ggplot(PimaIndiansDiabetes, aes(x = diabetes, y = glucose, fill = diabetes)) +
+  geom_boxplot() +
+  labs(title = "Glucose by Diabetes Status", x = "Diabetes Status", y = "Glucose") +
+  theme_minimal()
+plot4 <- ggplot(PimaIndiansDiabetes, aes(x = diabetes, y = pressure, fill = diabetes)) +
+  geom_boxplot() +
+  labs(title = "Pressure by Diabetes Status", x = "Diabetes Status", y = "Pressure") +
+  theme_minimal()
+
+# align plots together
+library(gridExtra)
+grid.arrange(plot1, plot2, plot3, plot4, ncol = 2)
+
+```
+
+
+```{r}
+plot5 <- ggplot(PimaIndiansDiabetes, aes(x = diabetes, y = triceps, fill = diabetes)) +
+  geom_boxplot() +
+  labs(title = "Triceps Thickness by Diabetes Status", x = "Diabetes Status", y = "Triceps Thickness") +
+  theme_minimal()
+
+
+plot6 <- ggplot(PimaIndiansDiabetes, aes(x = diabetes, y = insulin, fill = diabetes)) +
+  geom_boxplot() +
+  labs(title = "Insulin by Diabetes Status", x = "Diabetes Status", y = "Insulin") +
+  theme_minimal()
+
+
+plot7 <- ggplot(PimaIndiansDiabetes, aes(x = diabetes, y = mass, fill = diabetes)) +
+  geom_boxplot() +
+  labs(title = "Body Mass Index (BMI) by Diabetes Status", x = "Diabetes Status", y = "BMI") +
+  theme_minimal()
+
+
+plot8 <- ggplot(PimaIndiansDiabetes, aes(x = diabetes, y = pedigree, fill = diabetes)) +
+  geom_boxplot() +
+  labs(title = "Pedigree Function by Diabetes Status", x = "Diabetes Status", y = "Pedigree Function") +
+  theme_minimal()
+
+# allign plots side by side
+grid.arrange(plot5, plot6, plot7, plot8, ncol = 2)
+
+```
+
+
+Box's M Test
+
+```{r}
+# Load necessary libraries
+library(mlbench)
+library(MASS)
+library(caret)
+library(biotools) # for boxM function
+
+# Load the dataset
+data(PimaIndiansDiabetes)
+
+# Check the structure of the dataset and the unique values in the `diabetes` column
+str(PimaIndiansDiabetes)
+print(unique(PimaIndiansDiabetes$diabetes))
+
+# Ensure the outcome variable is a factor
+PimaIndiansDiabetes$diabetes <- as.factor(PimaIndiansDiabetes$diabetes)
+
+# Ensure the data is numeric (including the outcome variable)
+PimaIndiansDiabetes <- PimaIndiansDiabetes[, sapply(PimaIndiansDiabetes, is.numeric) | colnames(PimaIndiansDiabetes) == "diabetes"]
+
+# Split the data into two groups based on diabetes status
+group1 <- PimaIndiansDiabetes[PimaIndiansDiabetes$diabetes == "pos", ]
+group2 <- PimaIndiansDiabetes[PimaIndiansDiabetes$diabetes == "neg", ]
+
+# Check the number of rows in each group to ensure they are not empty
+print(paste("Number of rows in group1 (diabetes = pos):", nrow(group1)))
+print(paste("Number of rows in group2 (diabetes = neg):", nrow(group2)))
+
+# Check for near-zero variance predictors and remove them
+nzv <- nearZeroVar(PimaIndiansDiabetes, saveMetrics = TRUE)
+nzv_cols <- rownames(nzv[nzv$nzv == TRUE, ])
+if (length(nzv_cols) > 0) {
+  group1 <- group1[, !(colnames(group1) %in% nzv_cols)]
+  group2 <- group2[, !(colnames(group2) %in% nzv_cols)]
+}
+
+# Ensure there are no issues with the subsetted groups
+if (nrow(group1) == 0 || nrow(group2) == 0) {
+  stop("One of the groups is empty after subsetting.")
+}
+
+# Remove the outcome variable from both groups
+group1 <- group1[, -which(names(group1) == "diabetes")]
+group2 <- group2[, -which(names(group2) == "diabetes")]
+
+# Combine the data into a single data frame and create a grouping factor
+combined_data <- rbind(group1, group2)
+grouping <- factor(c(rep("pos", nrow(group1)), rep("neg", nrow(group2))))
+
+# Perform Box's M test
+result <- boxM(combined_data, grouping)
+
+# Print the result
+print(result)
+
+```
+
+Since we obtain a p-value so close to zero, we reject the null hypothesis and continue on with performing QDA on the data.
+
+
+QDA:
+
+For the QDA process, we aim to first perform QDA by simply splitting the data into training and test sets, then we will perform QDA with k-fold cross-validation, then we will perform QDA without any splitting. We plan to evaluate the accuracy of each QDA process and see which one works best in terms of fitting the data, new and old. 
+
+
+QDA - splitting into training and test sets
+```{r}
+cov(group1)
+cov(group2)
+colMeans(group1)
+colMeans(group2)
+T1 = 0.5*log(det(cov(group2))/det(cov(group1)))
+T2 = 0.5*(t(colMeans(group2))%*%solve(cov(group2))%*%(colMeans(group2))-t(colMeans(group1))%*%solve(cov(group1))%*%(colMeans(group1)))
+db = T1+T2
+colMeans(group1)%*%solve(cov(group1))
+colMeans(group2)%*%solve(cov(group2))
+solve(cov(group2))-solve(cov(group1))
+print(db)
+```
+
+
+QDA (split) (cont.) - Confusion Matrix
+```{r}
+library(mlbench)
+library(MASS)
+library(caret)
+data(PimaIndiansDiabetes)
+
+# convert to a factor
+PimaIndiansDiabetes$diabetes <- as.factor(PimaIndiansDiabetes$diabetes)
+
+# numeric data
+PimaIndiansDiabetes <- PimaIndiansDiabetes[, sapply(PimaIndiansDiabetes, is.numeric) | colnames(PimaIndiansDiabetes) == "diabetes"]
+
+# training and test sets
+set.seed(123)
+train_Index <- createDataPartition(PimaIndiansDiabetes$diabetes, p = .7, 
+                                  list = FALSE, 
+                                  times = 1)
+Pima_Train <- PimaIndiansDiabetes[ train_Index,]
+PimaTest  <- PimaIndiansDiabetes[-train_Index,]
+
+# train QDA model
+qda_model <- qda(diabetes ~ ., data = Pima_Train)
+
+# predictions on test set
+qda_predictions <- predict(qda_model, PimaTest)
+
+# evaluate model
+conf_matrix <- confusionMatrix(qda_predictions$class, PimaTest$diabetes)
+print(conf_matrix)
+
+
+```
+
+From the confusion matrix, we see that it yielded 122 true negatives and 28 false negatives, and 41 true positives and 39 false positives. False positives are indicative of Type I error, and false negatives are indicative of Type II error. This means from our confusion matrix, 39 healthy women were diagnosed with onset diabetes, and 28 women with onset diabetes were incorrectly diagnosed as healthy. 
+
+QDA (split) Performance Metrics
+```{r}
+# performance metrics
+accuracy <- conf_matrix$overall['Accuracy']
+precision <- conf_matrix$byClass['Pos Pred Value']
+recall <- conf_matrix$byClass['Sensitivity']
+f1 <- 2 * (precision * recall) / (precision + recall)
+
+cat("Accuracy of QDA Model: ", accuracy, "\n")
+cat("Precision of QDA Model: ", precision, "\n")
+cat("Recall of QDA Model: ", recall, "\n")
+cat("F1 Score of QDA Model: ", f1, "\n")
+
+# misclassification error rate
+total <- sum(conf_matrix$table)
+misclassifications <- total - sum(diag(conf_matrix$table))
+error_rate <- misclassifications / total
+
+cat("Misclassification Error Rate: ", error_rate, "\n")
+```
+
+From this table, we can identify several key findings. First, we obtain an accuracy rate of 70.87%, which is the percentage of correctly classified instances. We get a precision rate of 75.78%, which is the percentage of positive identifications that actually prove to be correct. The recall percentage is 81.33%, the percentage of actual positives that are correctly identified. The F1 score, which is the mean of precision and recall, is 78.46%. Finally, we obtain a misclassification error rate of 29.13%. 
+
+For precision, recall, and F1 score, we ideally would desire rates at 80% or above. Our precision and F1 rates are somewhat close to 80%, while our recall percentage is over 80%, which is generally good. We want a high accuracy, ideally above 90%, but our accuracy is at 70.87%, which is not good enough. Our misclassification error rate is mediocre at 29.13%, with a rate at 40% or above being considered poor. 
+
+
+QDA with cross-validation - Confusion Matrix
+```{r}
+data(PimaIndiansDiabetes)
+PimaIndiansDiabetes$diabetes <- as.factor(PimaIndiansDiabetes$diabetes)
+PimaIndiansDiabetes <- PimaIndiansDiabetes[, sapply(PimaIndiansDiabetes, is.numeric) | colnames(PimaIndiansDiabetes) == "diabetes"]
+
+# train QDA model
+control <- trainControl(method = "cv", number = 10)
+set.seed(123)
+qda_model2 <- train(diabetes ~ ., data = PimaIndiansDiabetes, method = "qda", trControl = control)
+print(qda_model2)
+
+# predictions
+qda_predictions2 <- predict(qda_model2, PimaIndiansDiabetes)
+qda_probs2 <- predict(qda_model2, PimaIndiansDiabetes, type = "prob")
+
+# confusion matrix
+conf_matrix2 <- confusionMatrix(qda_predictions2, PimaIndiansDiabetes$diabetes)
+print(conf_matrix2)
+```
+
+Examining the confusion matrix from the QDA model with cross-validation, we have 432 true negatives and 68 false negatives, and 155 true positives and 113 false positives. This indicates that 113 healthy women were incorrectly diagnosed with diabetes (Type I error), and 68 women with diabetes were incorrectly diagnosed as healthy (Type II error). 
+
+QDA with cross-validation - Performance Metrics
+```{r}
+# misclassification error rate
+error_rate <- 1 - conf_matrix2$overall['Accuracy']
+cat("Misclassification Error Rate: ", error_rate, "\n")
+
+# performance metrics
+accuracy <- conf_matrix2$overall['Accuracy']
+precision <- conf_matrix2$byClass['Pos Pred Value']
+recall <- conf_matrix2$byClass['Sensitivity']
+f1_score <- conf_matrix2$byClass['F1']
+
+cat("Accuracy of QDA Model w/ Cross-Validation: ", accuracy, "\n")
+cat("Precision of QDA Model w/ Cross-Validation: ", precision, "\n")
+cat("Recall of QDA Model w/ Cross-Validation: ", recall, "\n")
+cat("F1 Score of QDA Model w/ Cross-Validation: ", f1_score, "\n")
+```
+
+From running a QDA model with cross-validation, we obtain several interesting findings. First, we have an accuracy of 76.43%, which is an improvement over the prior model WITH training and test sets. We also obtain improved precision and recall rates at 79.27% and 86.4%, respectively, an improved F1 score of 82.68%, and a lower misclassification error rate of 23.57%.
+
+Our accuracy rate is about 6% closer to a generally "good" rate of 80%, but still not at our desired "great" rate of 90% or higher. Our precision rate is almost at 80%, which we can consider generally good, and our recall rate is sitting at a very good percentage. Our F1 score is also now above 80%, which we can also now consider to be good. The misclassification error rate did not drop as much as we wanted it to, with it still sitting at a somewhat mediocre percentage, but it is still beneficial that it lowered at all. 
+
+
+QDA without splitting
+```{r}
+library(mlbench)
+library(MASS)
+library(caret)
+data(PimaIndiansDiabetes)
+
+# convert diabetes column to a factor
+PimaIndiansDiabetes$diabetes <- as.factor(PimaIndiansDiabetes$diabetes)
+
+# numeric data
+PimaIndiansDiabetes <- PimaIndiansDiabetes[, sapply(PimaIndiansDiabetes, is.numeric) | colnames(PimaIndiansDiabetes) == "diabetes"]
+
+# train QDA model
+qda_no_split <- qda(diabetes ~ ., data = PimaIndiansDiabetes)
+
+# predictions on entire set
+qda_predictions3 <- predict(qda_no_split, PimaIndiansDiabetes)
+
+# evaluate model
+conf_matrix3 <- confusionMatrix(qda_predictions3$class, PimaIndiansDiabetes$diabetes)
+print(conf_matrix3)
+```
+
+QDA without splitting - Performance Metrics
+```{r}
+# misclassification error rate
+error_rate <- 1 - conf_matrix3$overall['Accuracy']
+cat("Misclassification Error Rate: ", error_rate, "\n")
+
+# performance metrics
+accuracy <- conf_matrix3$overall['Accuracy']
+precision <- conf_matrix3$byClass['Pos Pred Value']
+recall <- conf_matrix3$byClass['Sensitivity']
+f1_score <- conf_matrix3$byClass['F1']
+
+cat("Accuracy of QDA Model w/ Cross-Validation: ", accuracy, "\n")
+cat("Precision of QDA Model w/ Cross-Validation: ", precision, "\n")
+cat("Recall of QDA Model w/ Cross-Validation: ", recall, "\n")
+cat("F1 Score of QDA Model w/ Cross-Validation: ", f1_score, "\n")
+```
+
+
+Since both the QDA cross-validation model and the QDA model without splitting result in the same exact accuracy, precision, recall, F1 score, and misclassification error rate, the cross validation model is better because it has less risk of overfitting, so it will make more accurate predictions on new data compared to the model without splitting data.
+
+Analysis of QDA Results:
+
+One of the main findings from our work with QDA (quantitative descriptive analysis) was that every metric that deals with accuracy and performance improved after doing QDA without splitting and k-fold cross-validation on the data. In other words, the metrics improved after switching to either QDA with k-fold cross-validation or QDA without splitting. Now, we would generally conclude that the efficiency in QDA lies in simply leaving out the process of splitting the data, but there is also the concern of overfitting the data and evaluation bias, two things that almost necessitate splitting the data for QDA. Overfitting the data occurs when the model learns the training data so well that it results in higher accuracy, but with poor generalization on newer data. Evaluation bias occurs when evaluation is performed on the same data it was trained on, and since the model has already been exposed to the data during the process of training, the performance does not accurately reflect how it would on newer data. 
+
+Splitting the data allows us to evaluate how the model performs on separate and unseen subsets of data, which is far more useful that subsets of data the model has already gotten accustomed to. Further, the key for evaluating a model also lies in how it works on newer data, because we want to see how it may perform in other real-world scenarios. With these factors, we cannot conclude that performing QDA without splitting the data into test and training sets. The best method would be QDA with k-fold cross-validation, because it splits into ten folds and evaluates for each fold, making the accuracy of this model more legitimate and better fitting for future subsets of data. 
+
+
+
+
+PCA
+```{r}
+#PCA
+
+library(ade4)
+
+data(PimaIndiansDiabetes)
+PimaIndiansDiabetes
+#make diabetes numeric by making the pos and neg values binary
+PimaIndiansDiabetes$diabetes <- ifelse(PimaIndiansDiabetes$diabetes == "pos", 1, 0)
+PimaIndiansDiabetes
+#get the numeric values
+a <- PimaIndiansDiabetes[, sapply(PimaIndiansDiabetes, is.numeric)]
+ev = eigen(cov(a))$values
+eve = eigen(cov(a))$vectors
+l1 = eve[1:9, 1] %*% t(a)
+l2 = eve[1:9, 2] %*% t(a)
+plot(-l1[1, 1:768], l2[1, 1:768], main = "PC1 vs. PC2 Correlation", xlab = "count", ylab = "count")
+plot(sort(-l1[1, 1:768]), main = "PC1 Plot")
+
+## contribution ratio
+Cr = rep(0, length(ev))
+for (k in 1:length(ev))
+  {
+  Cr[k] = sum(ev[1:k]) / sum(ev)
+}
+
+plot(Cr, main = "Contribution Ratio Plot", xlab = "PC Number",ylab = "Contribution ratio", pch = 19, col = "blue")
+abline(h = 0.8, col = "red")
+
+## overall threshold
+plot(ev, main = "Overall Threhold Plot", xlab = "PC Number", ylab = "eigenvalues", pch = 19, col = "blue")
+abline(h = mean(ev), col = "red")
+
+```
+
+
+```{r}
+#here we find the numeric values of PC1 and PC2
+load <- eve[, 1]
+load2 <- eve[, 2]
+#here we are finding the column names so we can link them to the components
+individualFeatures <- colnames(a)
+#here we are looking to see what features these numbers correspond
+PC1 <- data.frame(Feature = individualFeatures, Loading = load)
+PC2 <- data.frame(Feature = individualFeatures, Loading = load2)
+
+#print
+print(PC1)
+print(PC2)
+```
+
+```{r}
+## Scree
+plot(ev[1:8]-ev[2:9], main = "Scree", xlab = "PC Number", ylab="Difference", pch = 19,col="blue")
+```
+
+
+PCA Plots (PC1 vs. PC2, PC1):
+Plot 1 shows the correlation between PC1 and PC2 in this case we know that PC1 is mainly driven by insulin levels and PC2 is driven by glucose. The cluster at the origin suggests that most people have average levels of both factors. Those straying right on the x-axis indicate higher insulin, and those straying up on the y-axis indicate higher glucose levels. We can see from this plot the individuals that are at risk for both factors are the most likely to be at risk.
+
+The second plot shows us the importance of the insulin factor as insulin is by far the highest factor in PC1. Based on the plot we can see that insulin and PC1 values correlate quite directly, proving the importance of the insulin factor.
+
+Contribution Ratio:
+In the contribution ratio plot shows us how many principal components are needed to get a majority of the variance. We can see a fast incline from the first 2 points and then the rest of the components don't provide much of an increase. This shows us that PC1 and PC2 are the main factors for the variance. Overall from this plot we can see that after the first 6 components the plot flattens out.
+
+Overall Threshold:
+For the overall threshold we look at the eigenvalues and as shown here there is a large drop from PC1 to PC2. The line shows the mean and those above it have significance to the variance which as we can see only PC1 is above the line, and in far second place PC2 is closest to the line out of the remaining components.
+
+Scree Plot:
+The scree plot shows us a very similar thing as the overall threshold plot. Instead of looking at the big drop in eigenvalues to interpret the amount of components needed, the Scree plot gives us a bigger overview of the eigenvalues for our dataset.This shows us the rate of variation as you go from one component to the next. As we can see here the output is generally the same showing the eigenvalue for PC1 to be by far the highest.  
+
+
+
+
+
+
+
+
+
+
+
+
+

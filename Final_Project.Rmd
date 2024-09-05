@@ -1,0 +1,77 @@
+---
+title: "Final Project"
+author: "Siddharth Das, Martin Topacio, Carly, Izzy"
+date: "2024-06-11"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data set one: Glass Identification Database
+
+Predict the glass type from chemical properties.
+
+Description:
+
+7 GROUPS
+
+A data frame with 214 observation containing examples of the chemical analysis of 7 different types of glass. The problem is to forecast the type of class on basis of the chemical analysis. The study of classification of types of glass was motivated by criminological investigation. At the scene of the crime, the glass left can be used as evidence (if it is correctly identified!).
+
+```{r}
+# install.packages("mlbench")
+
+library(mlbench)
+data(Glass)
+
+Glass
+
+dim(Glass)
+```
+
+# Data set two: Pima Indians Diabetes Database
+
+Predict the onset of diabetes in female Pima Indians from medical record data.
+
+Description:
+
+A data frame with 768 observations on 9 variables. 
+
+BINARY CLASSIFICATION EASIEST???
+
+```{r}
+library(mlbench)
+data(PimaIndiansDiabetes)
+
+PimaIndiansDiabetes
+```
+
+# Data Cleaning
+
+```{r}
+
+```
+
+
+# Data set three: Air pollution in US cities
+
+Which of the climate and human ecology variables are the best predictors of the degree of the air pollution in a city as measured by the sulphur dioxide content of the air. Some people are even interested in ranking the performance of the cities.
+
+Description:
+
+41 observations, 7 variables
+
+```{r}
+# install.packages("HSAUR2")
+
+library(HSAUR2)
+data(USairpollution)
+
+USairpollution
+
+dim(USairpollution)
+```
+
